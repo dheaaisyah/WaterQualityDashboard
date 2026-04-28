@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Play, Square, AlertCircle } from 'lucide-react';
+import { Activity, AlertCircle, Loader2 } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -19,56 +19,86 @@ const paramConfig = {
   Turbidity: { color: '#f87171', unit: 'NTU', label: 'Kekeruhan (Turbidity)' }
 };
 
-const generateInitialHistory = () => {
-  const data = [];
-  const now = new Date();
-  
-  for (let i = 30; i >= 0; i--) {
-    const timePoint = new Date(now.getTime() - i * 2 * 60000);
-    data.push({
-      time: timePoint.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      pH: parseFloat((7.0 + Math.random() * 0.4).toFixed(2)),
-      Suhu: parseFloat((28.0 + Math.random() * 1.5).toFixed(1)),
-      EC: Math.floor(1200 + Math.random() * 100),
-      TDS: Math.floor(600 + Math.random() * 50),
-      Turbidity: parseFloat((3.5 + Math.random() * 1.2).toFixed(1))
-    });
-  }
-  return data;
-};
-
 export default function ChartSection() {
   const [activeParam, setActiveParam] = useState('pH');
-  const [historyData, setHistoryData] = useState(generateInitialHistory());
-  const [isLiveSimulating, setIsLiveSimulating] = useState(false);
+  const [historyData, setHistoryData] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchHistoryData = async () => {
+    try {
+      const response = await fetch('https://water-quality-database.vercel.app/api/v1/waterquality/history');
+      const result = await response.json();
+      const rawArray = result.data || result.dataWaterQuality || (Array.isArray(result) ? result : []);
+
+      if (rawArray.length > 0) {
+        const top30 = rawArray.slice(0, 30);
+        const sortedForChart = top30.reverse().map(item => {
+        const rawDate = item.timestamp; 
+        
+        let formattedTime = "--:--";
+        
+        if (rawDate) {
+          const dateObj = new Date(rawDate);
+          if (!isNaN(dateObj.getTime())) {
+            formattedTime = dateObj.toLocaleTimeString('id-ID', { 
+              hour: '2-digit', 
+              minute: '2-digit' 
+            });
+          }
+        }
+
+        return {
+          time: formattedTime,
+          pH: parseFloat(item.ph || 0),
+          Suhu: parseFloat(item.suhu || 0),
+          EC: parseFloat(item.ec || 0),
+          TDS: parseFloat(item.tds || 0),
+          Turbidity: parseFloat(item.turbidity || 0)
+        };
+      });
+
+        setHistoryData(sortedForChart);
+      }
+    } catch (error) {
+      console.error("Gagal mengambil data histori:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistoryData();
+    const interval = setInterval(() => {
+      fetchHistoryData();
+    }, 60000); 
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const getPredictedAverage = (param) => {
+    if (historyData.length === 0) return 0;
     const sum = historyData.reduce((acc, curr) => acc + curr[param], 0);
     const avg = sum / historyData.length;
     const variation = avg * 0.02; 
     return parseFloat((avg + variation).toFixed(param === 'EC' || param === 'TDS' ? 0 : 2));
   };
 
-  useEffect(() => {
-    let interval;
-    if (isLiveSimulating) {
-      interval = setInterval(() => {
-        setHistoryData((prevData) => {
-          const now = new Date();
-          const newDataPoint = {
-            time: now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-            pH: parseFloat((7.0 + Math.random() * 0.4).toFixed(2)),
-            Suhu: parseFloat((28.0 + Math.random() * 1.5).toFixed(1)),
-            EC: Math.floor(1200 + Math.random() * 100),
-            TDS: Math.floor(600 + Math.random() * 50),
-            Turbidity: parseFloat((3.5 + Math.random() * 1.2).toFixed(1))
-          };
-          return [...prevData.slice(1), newDataPoint];
-        });
-      }, 2000);
-    }
-    return () => clearInterval(interval);
-  }, [isLiveSimulating]);
+  if (isLoading) {
+    return (
+      <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg flex items-center justify-center min-h-[400px]">
+         <Loader2 className="animate-spin mr-2 text-blue-400" size={24} />
+         <span className="text-slate-400">Memuat grafik data...</span>
+      </div>
+    );
+  }
+
+  if (historyData.length === 0) {
+    return (
+      <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg flex items-center justify-center min-h-[400px]">
+         <span className="text-slate-400">Belum ada data riwayat yang tersedia di database.</span>
+      </div>
+    );
+  }
 
   const predictedValue = getPredictedAverage(activeParam);
   const latestDataPoint = historyData[historyData.length - 1];
@@ -87,7 +117,9 @@ export default function ChartSection() {
     }
   ];
 
-  chartDataWithPrediction[chartDataWithPrediction.length - 2].predictData = latestDataPoint[activeParam];
+  if (chartDataWithPrediction.length >= 2) {
+    chartDataWithPrediction[chartDataWithPrediction.length - 2].predictData = latestDataPoint[activeParam];
+  }
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -112,40 +144,26 @@ export default function ChartSection() {
   };
 
   return (
-    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg flex flex-col h-full font-sans">
+    <div className="bg-slate-800 rounded-xl p-5 border border-slate-700 shadow-lg flex flex-col font-sans">
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
         <div>
           <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-            Tren Data Real-time
-            {isLiveSimulating && (
-              <span className="flex h-2.5 w-2.5 relative ml-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
-              </span>
-            )}
+            Tren Data Real-time (Satu Jam Terakhir)
+            <span className="flex h-2.5 w-2.5 relative ml-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
           </h2>
         </div>
         
         <div className="flex items-center gap-3">
-          {/* <button 
-            onClick={() => setIsLiveSimulating(!isLiveSimulating)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-bold transition-all border ${
-              isLiveSimulating 
-                ? 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30' 
-                : 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/30'
-            }`}
-          >
-            {isLiveSimulating ? <Square size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}
-            {isLiveSimulating ? 'STOP SIMULASI' : 'MULAI SIMULASI LIVE'}
-          </button> */}
           <span className="text-xs text-blue-400 bg-blue-400/10 px-2 py-1.5 rounded border border-blue-400/20 whitespace-nowrap font-semibold">
-            Prediction Active
+            LSTM Prediction Active
           </span>
         </div>
       </div>
 
-      {/* 2. TAB PARAMETER */}
       <div className="flex flex-wrap gap-2 mb-6 p-1 bg-slate-900/50 rounded-lg w-fit border border-slate-700/50">
         {Object.keys(paramConfig).map((key) => (
           <button
@@ -183,9 +201,8 @@ export default function ChartSection() {
             />
             
             <Tooltip content={<CustomTooltip />} />
+            
             <ReferenceArea x1={latestDataPoint.time} x2="Besok" fill="#3b82f6" fillOpacity={0.05} />
-
-            {/*  Histori Aktual (Solid) */}
             <Line 
               type="monotone" 
               dataKey="actualData" 
@@ -193,10 +210,9 @@ export default function ChartSection() {
               strokeWidth={2.5} 
               dot={{ r: 3, strokeWidth: 2, fill: '#0f172a' }} 
               activeDot={{ r: 6, stroke: '#1e293b', strokeWidth: 2 }} 
-              isAnimationActive={false} 
+              isAnimationActive={true} 
             />
 
-            {/* Prediksi (Putus-putus) */}
             <Line 
               type="linear" 
               dataKey="predictData" 
@@ -205,7 +221,7 @@ export default function ChartSection() {
               strokeDasharray="5 5" 
               dot={{ r: 4, strokeWidth: 2, fill: '#0f172a' }} 
               activeDot={{ r: 6, stroke: '#1e293b', strokeWidth: 2 }} 
-              isAnimationActive={false}
+              isAnimationActive={true}
             />
 
           </LineChart>
@@ -213,12 +229,13 @@ export default function ChartSection() {
 
         <div className="absolute right-4 top-2 pointer-events-none">
           <span className="text-[9px] text-blue-400 uppercase tracking-widest font-bold bg-slate-900/80 px-1.5 py-0.5 rounded border border-blue-500/30 backdrop-blur-sm shadow-lg">
-            Prediksi Besok
+            Prediksi Model
           </span>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-auto">
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mt-6">
         <div className="bg-slate-900 p-4 rounded-lg border border-slate-700 flex items-center justify-between">
           <div>
             <span className="text-slate-400 block text-xs mb-1 uppercase tracking-wider font-semibold">Estimasi Rata-rata Besok</span>
@@ -237,7 +254,7 @@ export default function ChartSection() {
           <div>
             <span className="text-slate-300 block mb-1 font-semibold">Analisis {activeParam}</span>
             <span className="text-slate-400 text-xs leading-relaxed block">
-              Berdasarkan tren data, diproyeksikan rata-rata nilai {activeParam} akan {predictedValue > latestDataPoint[activeParam] ? 'sedikit meningkat' : 'cenderung stabil'} pada esok hari.
+              Berdasarkan 30 data riwayat terbaru, diproyeksikan nilai {activeParam} akan {predictedValue > latestDataPoint[activeParam] ? 'sedikit meningkat' : 'cenderung turun/stabil'} menuju {predictedValue} {paramConfig[activeParam].unit}.
             </span>
           </div>
         </div>
