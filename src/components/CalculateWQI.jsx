@@ -25,10 +25,10 @@ export function scoreTemp(temp) {
 }
 
 export function scoreTurbidity(turbidity) {
-  if (turbidity <= 5) return 100;
-  if (turbidity <= 25) return 80;
-  if (turbidity <= 100) return 50;
-  return 20;                        
+  if (turbidity <= 5.0) return 100;
+  if (turbidity <= 25.0) return 80
+  if (turbidity <= 100.0) return 50;
+  return 20;
 }
 
 export function calculateWQIData(sensorData) {
@@ -43,8 +43,8 @@ export function calculateWQIData(sensorData) {
   const wqi = 
     (0.25 * phScore) + 
     (0.20 * tdsScore) + 
-    (0.20 * turbScore) + 
     (0.20 * ecScore) + 
+    (0.20 * turbScore) + 
     (0.15 * tempScore);
     
   const roundedWqi = Math.round(wqi);
@@ -57,40 +57,11 @@ export function calculateWQIData(sensorData) {
   const causes = [];
   
   if (level !== 1) {
-    if (phScore < 100) causes.push({ 
-      name: "pH", 
-      value: sensorData.ph, 
-      type: phScore <= 50 ? "danger" : "warning", 
-      reason: "di luar rentang optimal." 
-    });
-    
-    if (tdsScore < 100) causes.push({ 
-      name: "TDS", 
-      value: `${sensorData.tds} ppm`, 
-      type: tdsScore <= 60 ? "danger" : "warning", 
-      reason: "melebihi ambang batas." 
-    });
-
-    if (turbScore < 100) causes.push({ 
-      name: "Turbidity", 
-      value: `${sensorData.turbidity} NTU`, 
-      type: turbScore <= 50 ? "danger" : "warning", 
-      reason: "air terpantau keruh." 
-    });
-    
-    if (ecScore < 100) causes.push({ 
-      name: "EC", 
-      value: `${sensorData.ec} µS/cm`, 
-      type: ecScore <= 40 ? "danger" : "warning", 
-      reason: "meningkat di atas ideal." 
-    });
-    
-    if (tempScore < 100) causes.push({ 
-      name: "Suhu", 
-      value: `${sensorData.temperature}°C`, 
-      type: tempScore <= 50 ? "danger" : "warning", 
-      reason: "di luar suhu normal." 
-    });
+    if (phScore < 100) causes.push({ name: "pH", value: sensorData.ph, type: phScore <= 50 ? "danger" : "warning", reason: "di luar rentang optimal." });
+    if (tdsScore < 100) causes.push({ name: "TDS", value: `${sensorData.tds} ppm`, type: tdsScore <= 60 ? "danger" : "warning", reason: "melebihi ambang batas." });
+    if (ecScore < 100) causes.push({ name: "EC", value: `${sensorData.ec} µS/cm`, type: ecScore <= 40 ? "danger" : "warning", reason: "meningkat di atas ideal." });
+    if (tempScore < 100) causes.push({ name: "Suhu", value: `${sensorData.temperature}°C`, type: tempScore <= 50 ? "danger" : "warning", reason: "di luar suhu normal." });
+    if (turbScore < 100) causes.push({ name: "Turbidity", value: `${sensorData.turbidity.toFixed(1)} NTU`, type: turbScore <= 50 ? "danger" : "warning", reason: "air terpantau keruh." });
   }
 
   return { level, causes };

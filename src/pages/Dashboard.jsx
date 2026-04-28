@@ -2,7 +2,6 @@ import Header from "../components/Header";
 import WaterQualityIndex from "../components/WaterQualityIndex";
 import Data from "../components/Data";
 import ChatBot from "../components/ChatBot";
-import { useSensorData } from "../hooks/useSensorData";
 
 export default function Dashboard() {
   return (
@@ -10,10 +9,6 @@ export default function Dashboard() {
       <Header />
       <Data />
       <ChatBot /> 
-
-
-
-
     </div>
   );
 }
