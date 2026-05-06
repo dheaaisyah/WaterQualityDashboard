@@ -33,29 +33,35 @@ export default function ChartSection() {
       if (rawArray.length > 0) {
         const top30 = rawArray.slice(0, 30);
         const sortedForChart = top30.reverse().map(item => {
-        const rawDate = item.timestamp; 
-        
-        let formattedTime = "--:--";
-        
-        if (rawDate) {
-          const dateObj = new Date(rawDate);
-          if (!isNaN(dateObj.getTime())) {
-            formattedTime = dateObj.toLocaleTimeString('id-ID', { 
-              hour: '2-digit', 
-              minute: '2-digit' 
-            });
+          // Melindungi agar bisa membaca timestamp atau createdAt
+          const rawDate = item.timestamp || item.createdAt || item.updatedAt; 
+          
+          let formattedTime = "--:--";
+          
+          if (rawDate) {
+            // PERBAIKAN ZONA WAKTU: Menghapus 'Z' dan 'T' agar tidak otomatis ditambah +7 jam oleh browser
+            const cleanDateStr = String(rawDate).replace('Z', '').replace('T', ' ');
+            const dateObj = new Date(cleanDateStr);
+            
+            if (!isNaN(dateObj.getTime())) {
+              // Paksa format 24 jam dengan pemisah titik dua
+              formattedTime = dateObj.toLocaleTimeString('id-ID', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: false
+              }).replace('.', ':');
+            }
           }
-        }
 
-        return {
-          time: formattedTime,
-          pH: parseFloat(item.ph || 0),
-          Suhu: parseFloat(item.suhu || 0),
-          EC: parseFloat(item.ec || 0),
-          TDS: parseFloat(item.tds || 0),
-          Turbidity: parseFloat(item.turbidity || 0)
-        };
-      });
+          return {
+            time: formattedTime,
+            pH: parseFloat(item.ph || 0),
+            Suhu: parseFloat(item.suhu || 0),
+            EC: parseFloat(item.ec || 0),
+            TDS: parseFloat(item.tds || 0),
+            Turbidity: parseFloat(item.turbidity || 0)
+          };
+        });
 
         setHistoryData(sortedForChart);
       }

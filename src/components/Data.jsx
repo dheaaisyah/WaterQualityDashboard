@@ -21,7 +21,9 @@ export default function Data() {
           ec: parseFloat(result.dataWaterQuality.ec || 0),
           tds: parseFloat(result.dataWaterQuality.tds || 0),
           turbidity: parseFloat(result.dataWaterQuality.turbidity || 0),
-          updatedAt: new Date(result.dataWaterQuality.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+          // Menangkap waktu_masuk langsung dari respons API
+          updatedAtRaw: result.dataWaterQuality.waktu_masuk || result.dataWaterQuality.updatedAt,
+          updatedAt: new Date(result.dataWaterQuality.waktu_masuk || result.dataWaterQuality.updatedAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
         };
         setSensorData(parsedData);
       } else {
@@ -78,11 +80,11 @@ export default function Data() {
 
   const alerts = [
     ...causes.map(cause => ({
-      time: sensorData.updatedAt,
+      time: sensorData?.updatedAtRaw || sensorData?.updatedAt,
       message: `Peringatan: ${cause.name} (${cause.value}) ${cause.reason}`,
       type: cause.type
     })),
-    { time: sensorData.updatedAt, message: `Data terakhir diperbarui dari server`, type: 'info' }
+    { time: sensorData?.updatedAtRaw || sensorData?.updatedAt, message: `Data terakhir diperbarui dari server`, type: 'info' }
   ];
 
   return (
@@ -131,18 +133,47 @@ export default function Data() {
             </div>
             <div className="space-y-3">
               {alerts.length === 0 ? (
-                 <div className="p-3 text-center text-sm text-slate-500">Sistem berjalan normal.</div>
+                <div className="p-3 text-center text-sm text-slate-500">Sistem berjalan normal.</div>
               ) : (
-                alerts.map((alert, idx) => (
-                  <div key={idx} className={`p-3 rounded-lg border text-sm ${alert.type === 'danger' ? 'bg-red-500/10 border-red-500/30' : alert.type === 'warning' ? 'bg-orange-500/10 border-orange-500/30' : 'bg-blue-500/10 border-blue-500/30'}`}>
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="font-semibold text-slate-300">{alert.time}</span>
+                alerts.map((alert, idx) => {
+                  let timeVal = alert.time || "--:--";
+                  let formattedTime = timeVal;
+
+                  if (String(timeVal).includes('T') || String(timeVal).includes('Z') || String(timeVal).includes('-')) {
+                    const cleanDateStr = String(timeVal).replace('Z', '').replace('T', ' ');
+                    const dateObj = new Date(cleanDateStr);
+                    if (!isNaN(dateObj.getTime())) {
+                      formattedTime = dateObj.toLocaleTimeString('id-ID', { 
+                        hour: '2-digit', 
+                        minute: '2-digit',
+                        hour12: false
+                      }).replace('.', ':');
+                    }
+                  }
+
+                  return (
+                    <div key={idx} className={`p-3 rounded-lg border text-sm ${
+                      alert.type === 'danger' 
+                        ? 'bg-red-500/10 border-red-500/30' 
+                        : alert.type === 'warning' 
+                        ? 'bg-orange-500/10 border-orange-500/30' 
+                        : 'bg-blue-500/10 border-blue-500/30'
+                    }`}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="font-semibold text-slate-300">{formattedTime}</span>
+                      </div>
+                      <p className={
+                        alert.type === 'danger' 
+                          ? 'text-red-300' 
+                          : alert.type === 'warning' 
+                          ? 'text-orange-300' 
+                          : 'text-blue-300'
+                      }>
+                        {alert.message}
+                      </p>
                     </div>
-                    <p className={alert.type === 'danger' ? 'text-red-300' : alert.type === 'warning' ? 'text-orange-300' : 'text-blue-300'}>
-                      {alert.message}
-                    </p>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
