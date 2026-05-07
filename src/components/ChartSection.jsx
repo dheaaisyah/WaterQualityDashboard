@@ -12,11 +12,11 @@ import {
 } from 'recharts';
 
 const paramConfig = {
-  pH: { color: '#4ade80', unit: 'pH', label: 'Tingkat Keasaman (pH)' },
-  Suhu: { color: '#fb923c', unit: '°C', label: 'Suhu Air' },
-  EC: { color: '#60a5fa', unit: 'µS/cm', label: 'Electrical Conductivity' },
-  TDS: { color: '#a78bfa', unit: 'ppm', label: 'Total Dissolved Solids' },
-  Turbidity: { color: '#f87171', unit: 'NTU', label: 'Kekeruhan (Turbidity)' }
+  pH: { color: '#4ade80', unit: 'pH', label: 'Tingkat Keasaman (pH)', domain: [0, 14] },
+  Suhu: { color: '#fb923c', unit: '°C', label: 'Suhu Air', domain: [15, 40] },
+  EC: { color: '#60a5fa', unit: 'µS/cm', label: 'Electrical Conductivity', domain: [100, 5000] },
+  TDS: { color: '#a78bfa', unit: 'ppm', label: 'Total Dissolved Solids', domain: [0, 500] },
+  Turbidity: { color: '#f87171', unit: 'NTU', label: 'Kekeruhan (Turbidity)', domain: [0, 500] }
 };
 
 export default function ChartSection() {
@@ -33,18 +33,15 @@ export default function ChartSection() {
       if (rawArray.length > 0) {
         const top30 = rawArray.slice(0, 30);
         const sortedForChart = top30.reverse().map(item => {
-          // Melindungi agar bisa membaca timestamp atau createdAt
           const rawDate = item.timestamp || item.createdAt || item.updatedAt; 
           
           let formattedTime = "--:--";
           
           if (rawDate) {
-            // PERBAIKAN ZONA WAKTU: Menghapus 'Z' dan 'T' agar tidak otomatis ditambah +7 jam oleh browser
             const cleanDateStr = String(rawDate).replace('Z', '').replace('T', ' ');
             const dateObj = new Date(cleanDateStr);
             
             if (!isNaN(dateObj.getTime())) {
-              // Paksa format 24 jam dengan pemisah titik dua
               formattedTime = dateObj.toLocaleTimeString('id-ID', { 
                 hour: '2-digit', 
                 minute: '2-digit',
@@ -199,10 +196,11 @@ export default function ChartSection() {
               minTickGap={30} 
             />
             
+            {/* Menggunakan property domain dari paramConfig */}
             <YAxis 
                 stroke="#94a3b8" 
                 fontSize={11} 
-                domain={['auto', 'auto']} 
+                domain={paramConfig[activeParam].domain} 
                 tickFormatter={(value) => new Intl.NumberFormat('id-ID', { notation: "compact" }).format(value)}
             />
             
