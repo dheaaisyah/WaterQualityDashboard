@@ -71,7 +71,7 @@ export default function Data() {
   const metrics = [
     { name: 'pH', value: sensorData.ph.toFixed(2), unit: 'pH', status: getStatus('pH', sensorData.ph), icon: Droplet },
     { name: 'Suhu', value: sensorData.temperature.toFixed(1), unit: '°C', status: getStatus('Suhu', sensorData.temperature), icon: Thermometer },
-    { name: 'EC', value: sensorData.ec.toFixed(0), unit: 'µS/cm', status: getStatus('EC', sensorData.ec), icon: Activity },
+    { name: 'EC', value: sensorData.ec.toFixed(3), unit: 'µS/cm', status: getStatus('EC', sensorData.ec), icon: Activity },
     { name: 'TDS', value: sensorData.tds.toFixed(0), unit: 'ppm', status: getStatus('TDS', sensorData.tds), icon: ActivitySquare },
     { name: 'Turbidity', value: sensorData.turbidity.toFixed(1), unit: 'NTU', status: getStatus('Turbidity', sensorData.turbidity), icon: AlertTriangle },
   ];
